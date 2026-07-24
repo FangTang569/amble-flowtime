@@ -1,0 +1,17 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicedoc/open-docs/main/tauri/capabilities.json",
+  "identifier": "default",
+  "windows": [
+    "main",
+    "mini"
+  ],
+  "permissions": [
+    "core:default",
+    "core:webview:allow-create-webview-window",
+    "core:window:allow-close",
+    "sql:default",
+    "sql:allow-execute",
+    "sql:allow-load",
+    "sql:allow-select"
+  ]
+}

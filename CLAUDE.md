@@ -1,0 +1,143 @@
+# amble: Timeflow Technique
+
+A minimalist flow-time technique timer built with Tauri v2 and Tailwind CSS.
+Cross-platform (Windows, macOS, Linux).
+
+## Philosophy
+
+Rest is not the opposite of work — rest is part of work.
+
+This app focuses on the forward-counting (正计时) timer experience.
+Each pause automatically calculates expected rest time based on a user-set ratio
+and pre-fills the rest countdown.
+
+## Tech Stack
+
+| Layer | Choice | Notes |
+|-------|--------|-------|
+| Desktop shell | Tauri v2 | Native windows, ~3-5 MB bundle |
+| Frontend tooling | Vite 6 + TypeScript 5.7 | HMR, strict type checking |
+| CSS | Tailwind CSS v3 via Play CDN | Quick prototyping; migrate to CLI for production |
+| State | Plain class (FlowTimer) | Zero deps, observer pattern |
+| Backend (Rust) | Minimal scaffold | Timer logic is pure frontend; Rust reserved for future |
+
+## Project Structure
+
+```
+amble-flowtime/
+├── CLAUDE.md                  # This file
+├── index.html                 # Vite entry + Tailwind CDN + app shell
+├── package.json               # Node deps
+├── tsconfig.json              # Strict TS config
+├── vite.config.ts             # Vite + Tauri-aware config
+├── src/
+│   ├── main.ts                # Bootstrap: create timer, wire UI & storage
+│   ├── timer.ts               # FlowTimer class (state machine + timing)
+│   ├── ui.ts                  # DOM manipulation, render(), setupUI()
+│   ├── types.ts               # Shared TypeScript types
+│   ├── storage.ts             # localStorage session persistence
+│   └── style.css              # Custom CSS (fonts, animations, scrollbar)
+├── src-tauri/
+│   ├── Cargo.toml             # tauri 2, serde, serde_json
+│   ├── build.rs               # tauri-build
+│   ├── tauri.conf.json        # Window 400×440, centered, resizable
+│   ├── capabilities/
+│   │   └── default.json       # core:default permission
+│   ├── icons/                 # App icons
+│   └── src/
+│       ├── lib.rs             # Minimal Tauri builder
+│       └── main.rs            # Desktop entry point
+└── todo.md                    # Project roadmap
+```
+
+## Architecture: Timer State Machine
+
+```
+idle ──[start]──> running ──[pause]──> paused ──[startRest]──> resting ──[auto/done]──> idle
+                     │                    │
+                     └──[stop]──> idle    └──[stop]──> idle
+                                          └──[resume]──> running
+```
+
+**States:**
+- **idle**: Timer reset, ready to start a new work session
+- **running**: Work timer counting up (forward-counting)
+- **paused**: Work timer stopped, rest time calculated and displayed
+- **resting**: Rest timer counting down from calculated rest time
+
+**Key behaviors:**
+- `start()`: Works from idle or paused state
+- `pause()`: Calculates `restTarget = workElapsed × ratio`, enters paused
+- `resume()`: Continues work from paused (accumulated time preserved)
+- `startRest()`: Begins countdown from pre-calculated rest time
+- `stop()`: Full reset to idle, clears all accumulators
+- Auto-stop: When rest countdown reaches 0, automatically transitions to idle
+
+## Architecture Decisions
+
+### Timer in Frontend (TypeScript)
+The timer uses `Date.now()` diff-based timing in the browser.
+No Rust backend involvement — avoids IPC overhead every 250ms tick.
+OS-level features (notifications, sleep prevention, system tray) are future concerns.
+
+### Drift Prevention
+Uses absolute `Date.now()` timestamps rather than incrementing a counter.
+Each tick recalculates elapsed from `segmentStartTime`. If the interval is
+throttled (minimized window, etc.), it catches up on the next tick.
+
+### Tick Interval: 250ms
+Provides smooth second-boundary transitions without measurable CPU cost.
+
+### Ratio
+- Stored as a decimal (0.05–1.0)
+- Default: 0.25 (work 4:1 = 25% rest)
+- Displayed as percentage + ratio string (e.g., "25% (work 4:1)")
+- Can be changed at any time; recalculates rest target if paused
+
+## Development Commands
+
+```bash
+# Install dependencies
+npm install
+
+# Run in dev mode (with hot reload)
+npm run tauri dev
+
+# TypeScript type check
+npx tsc --noEmit
+
+# Build for production
+npm run tauri build
+```
+
+### Prerequisites (Windows)
+- Node.js >= 18
+- Rust >= 1.77
+- Microsoft Visual C++ Build Tools
+- WebView2 runtime (pre-installed on Windows 11)
+
+## Known Limitations (Step 1)
+
+| Limitation | Mitigation |
+|------------|------------|
+| Tailwind via CDN (needs internet) | Documented; migrate to CLI build in future step |
+| Timer format MM:SS only | Sufficient for < 99 min sessions; extend later |
+| No notifications on rest complete | Add tauri-plugin-notification later |
+| No persistence (data lost on close) | localStorage session history added |
+| No system tray / background mode | Tauri plugin in future step |
+| No sound alerts | Future enhancement |
+
+## Future Roadmap (from todo.md)
+
+1. **Time block view** (时间块视图) — visual timeline of work/rest blocks, inspired by KOReader's "全书漫游"
+2. **Quick-add time entry** (高效的时间块添加系统) — inspired by Toggl's time entry system
+3. **Stats & forgiveness** (零挫败感):
+   - Statistics at week/month granularity (daily stats hidden deeper)
+   - Rest overtime goes negative silently (no punishment)
+   - Slider to quickly record actual duration for long sessions
+4. **Production polish**:
+   - Replace Tailwind CDN with CLI/PostCSS build
+   - Add app icons
+   - System tray integration
+   - Notifications on state transitions
+   - Prevent system sleep during active sessions

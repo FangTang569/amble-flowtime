@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            mono: ['"Inter"', 'system-ui', 'sans-serif'],
+          },
+          colors: {
+            accent: '#2dd4bf',
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet" href="/src/style.css" />
+  <style>
+    body {
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      overflow: hidden;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-app-region: drag;
+    }
+  </style>
+</head>
+<body class="flex items-center justify-center py-1.5 px-3">
+  <span id="mini-minutes" class="font-mono text-lg font-semibold tracking-tight tabular-nums text-neutral-800">00</span>
+  <span id="mini-colon" class="font-mono text-lg font-semibold tracking-tight tabular-nums text-neutral-400">:</span>
+  <span id="mini-seconds" class="font-mono text-lg font-semibold tracking-tight tabular-nums text-neutral-800">00</span>
+  <script type="module" src="/src/overlay.ts"></script>
+</body>
+</html>
