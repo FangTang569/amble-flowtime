@@ -29,12 +29,24 @@
       -webkit-user-select: none;
       -webkit-app-region: drag;
     }
+    #btn-close {
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+    body:hover #btn-close {
+      opacity: 1;
+    }
   </style>
 </head>
-<body class="flex items-center justify-center py-1.5 px-3">
-  <span id="mini-minutes" class="font-mono text-lg font-semibold tracking-tight tabular-nums text-neutral-800">00</span>
-  <span id="mini-colon" class="font-mono text-lg font-semibold tracking-tight tabular-nums text-neutral-400">:</span>
-  <span id="mini-seconds" class="font-mono text-lg font-semibold tracking-tight tabular-nums text-neutral-800">00</span>
+<body class="relative flex items-center justify-center py-1 px-2">
+  <span id="mini-minutes" class="font-mono text-xl font-semibold tracking-tight tabular-nums text-neutral-800">00</span>
+  <span id="mini-colon" class="font-mono text-xl font-semibold tracking-tight tabular-nums text-neutral-400">:</span>
+  <span id="mini-seconds" class="font-mono text-xl font-semibold tracking-tight tabular-nums text-neutral-800">00</span>
+  <button id="btn-close" class="absolute right-0.5 top-1/2 -translate-y-1/2 text-neutral-400 hover:text-neutral-600 transition-colors cursor-pointer p-0.5" style="-webkit-app-region: no-drag;" title="Close overlay">
+    <svg width="10" height="10" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <path d="M1 1l10 10M11 1L1 11"/>
+    </svg>
+  </button>
   <script type="module" src="/src/overlay.ts"></script>
 </body>
 </html>

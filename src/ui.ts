@@ -1,6 +1,10 @@
 import type { FlowTimer } from "./timer";
 import type { TimerSnapshot } from "./types";
-import { getTodayBlocks, formatDuration, formatTimestamp } from "./storage";
+import {
+  getTodayBlocks, addManualBlock, getStats,
+  getDailyBars, getWeeklyBars, getMonthlyBars,
+  formatDuration, formatTimestamp
+} from "./storage";
 
 // --- DOM references (set once on init) ---
 let elMinutes: HTMLElement;
@@ -128,6 +132,7 @@ export function setupUI(timer: FlowTimer): void {
 
   // Wire events
   elBtnStart.addEventListener("click", () => timer.start());
+  document.getElementById("btn-start-top")?.addEventListener("click", () => timer.start());
   elBtnPause.addEventListener("click", () => timer.pause());
   elBtnResume.addEventListener("click", () => timer.resume());
   elBtnRest.addEventListener("click", () => timer.startRest());
@@ -140,6 +145,90 @@ export function setupUI(timer: FlowTimer): void {
   document.getElementById("timeline-scale")?.addEventListener("click", () => {
     rowScaleIdx = (rowScaleIdx + 1) % ROW_SCALES.length;
     renderTimeline();
+  });
+
+  // Quick-add
+  document.getElementById("qa-add")?.addEventListener("click", async () => {
+    const typeEl = document.getElementById("qa-type") as HTMLSelectElement;
+    const durEl = document.getElementById("qa-duration") as HTMLInputElement;
+    if (!typeEl || !durEl) return;
+
+    const blockType = typeEl.value as "work" | "rest";
+    const durationMin = parseInt(durEl.value);
+    if (durationMin <= 0) return;
+
+    const ratio = parseInt((document.getElementById("ratio-slider") as HTMLInputElement).value) / 100;
+
+    await addManualBlock({
+      block_type: blockType,
+      durationMin,
+      ratio,
+    });
+
+    await renderTimeline();
+    await renderHistory();
+  });
+
+  // Segmented control: switch between timer / stats views
+  let isStatsView = false;
+  const elPanelTimer = document.getElementById("panel-timer")!;
+  const elPanelStats = document.getElementById("panel-stats")!;
+  const elSegTimer = document.getElementById("seg-timer")!;
+  const elSegStats = document.getElementById("seg-stats")!;
+  const elSegSlider = document.getElementById("seg-slider")!;
+
+  function switchView(showStats: boolean) {
+    isStatsView = showStats;
+    if (showStats) {
+      elPanelTimer.classList.add("hidden");
+      elPanelStats.classList.remove("hidden");
+      elSegTimer.classList.add("text-neutral-400");
+      elSegTimer.classList.remove("text-neutral-800");
+      elSegStats.classList.add("text-neutral-800");
+      elSegStats.classList.remove("text-neutral-400");
+      elSegSlider.classList.remove("left");
+      elSegSlider.classList.add("right");
+      renderTimeline();
+      renderHistory();
+      renderStats();
+    } else {
+      elPanelTimer.classList.remove("hidden");
+      elPanelStats.classList.add("hidden");
+      elSegTimer.classList.add("text-neutral-800");
+      elSegTimer.classList.remove("text-neutral-400");
+      elSegStats.classList.add("text-neutral-400");
+      elSegStats.classList.remove("text-neutral-800");
+      elSegSlider.classList.remove("right");
+      elSegSlider.classList.add("left");
+    }
+  }
+
+  elSegTimer.addEventListener("click", () => { if (isStatsView) switchView(false); });
+  elSegStats.addEventListener("click", () => { if (!isStatsView) switchView(true); });
+
+  // Initial state: timer icon = active (darker)
+  elSegTimer.classList.add("text-neutral-800");
+
+  // Stats period selector
+  const statButtons = [
+    { el: document.getElementById("stat-week")!, period: "week" as const, days: 7 },
+    { el: document.getElementById("stat-month")!, period: "month" as const, days: 30 },
+    { el: document.getElementById("stat-year")!, period: "year" as const, days: 365 },
+  ];
+
+  statButtons.forEach(({ el, period, days }) => {
+    el.addEventListener("click", () => {
+      statsDays = days;
+      statsPeriod = period;
+      statButtons.forEach(({ el: b, period: p }) => {
+        if (p === period) {
+          b.className = "bg-neutral-200 rounded-full px-3 py-1 text-xs font-semibold text-neutral-800 cursor-pointer transition-colors";
+        } else {
+          b.className = "text-neutral-400 hover:text-neutral-600 rounded-full px-3 py-1 text-xs cursor-pointer transition-colors";
+        }
+      });
+      renderStats();
+    });
   });
 }
 
@@ -261,11 +350,14 @@ export async function renderTimeline(): Promise<void> {
   }
   if (currentRow.length > 0) rows.push(currentRow);
 
-  // Render rows — split blocks get flat edges (= no rounding)
-  elRows.innerHTML = rows.map((row) => {
+  // Render rows — each row width = full rowSec, last row may have empty tail
+  elRows.innerHTML = rows.map((row, ri) => {
+    const isLast = ri === rows.length - 1;
     const rowTotal = row.reduce((s, seg) => s + seg.duration, 0);
+    const scale = isLast ? rowSec : rowTotal; // last row uses full rowSec width, others fill exactly
+
     const segs = row.map((seg) => {
-      const pct = Math.max(1, (seg.duration / rowTotal) * 100);
+      const pct = Math.max(1, (seg.duration / scale) * 100);
       const color = seg.block_type === "work" ? "bg-accent" : "bg-neutral-300";
       const round = seg.continues ? "rounded-none" : "rounded-sm";
       return `<div class="${color} ${round}" style="width:${pct}%"></div>`;
@@ -289,4 +381,61 @@ export async function renderTimeline(): Promise<void> {
     <span class="text-neutral-400 text-xs">${formatTimestamp(firstStart)}</span>
     <span class="text-neutral-400 text-xs">${formatTimestamp(lastEnd)}</span>
   `;
+}
+
+// --- Stats ---
+
+let statsDays = 7;
+let statsPeriod: "week" | "month" | "year" = "week";
+
+export async function renderStats(): Promise<void> {
+  const stats = await getStats(statsDays);
+
+  // Summary cards
+  const elFocus = document.getElementById("stat-focus");
+  const elBreak = document.getElementById("stat-break");
+  const elCount = document.getElementById("stat-count");
+
+  const totalSec = stats.focusSec + stats.breakSec;
+  const breakPct = totalSec > 0 ? Math.round((stats.breakSec / totalSec) * 100) : 0;
+
+  if (elFocus) elFocus.textContent = formatDuration(totalSec);
+  if (elBreak) elBreak.textContent = `${breakPct}%`;
+  if (elCount) elCount.textContent = String(stats.sessionCount);
+
+  // Bar chart
+  const elChart = document.getElementById("bar-chart");
+  if (!elChart) return;
+
+  let bars: Array<{ label: string; focusSec: number; breakSec: number }> = [];
+  if (statsPeriod === "week") {
+    bars = await getDailyBars(7);
+  } else if (statsPeriod === "month") {
+    bars = await getWeeklyBars(5);
+  } else {
+    bars = await getMonthlyBars(12);
+  }
+
+  if (bars.length === 0) {
+    elChart.innerHTML = `<p class="text-neutral-400 text-sm w-full text-center">No data</p>`;
+    return;
+  }
+
+  const maxSec = Math.max(1, ...bars.map((b) => b.focusSec + b.breakSec));
+
+  elChart.innerHTML = bars.map((b) => {
+    const total = b.focusSec + b.breakSec;
+    const heightPct = Math.max(4, (total / maxSec) * 100);
+    const breakPct = total > 0 ? (b.breakSec / total) * 100 : 0;
+
+    return `
+      <div class="flex-1 h-full flex flex-col items-center justify-end gap-0.5">
+        <span class="text-neutral-400 text-xs font-mono tabular-nums leading-none">${total > 0 ? formatDuration(total) : ""}</span>
+        <div class="w-full rounded-sm bg-accent relative overflow-hidden" style="height:${heightPct}%">
+          <div class="bg-neutral-300 w-full absolute bottom-0 rounded-b-sm" style="height:${breakPct}%"></div>
+        </div>
+        <span class="text-neutral-400 text-xs">${b.label}</span>
+      </div>
+    `;
+  }).join("");
 }

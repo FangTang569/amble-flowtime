@@ -108,6 +108,38 @@ export async function saveSession(data: {
   }
 }
 
+// --- Manual entry ---
+
+export async function addManualBlock(params: {
+  block_type: "work" | "rest";
+  durationMin: number;
+  ratio: number;
+  tag?: string;
+  note?: string;
+}): Promise<void> {
+  const d = await getDb();
+  const now = Date.now();
+  const durationSec = params.durationMin * 60;
+  const earned = params.block_type === "work"
+    ? Math.round(durationSec * params.ratio)
+    : durationSec; // rest: earned = its own duration (allocated rest)
+
+  await d.execute(
+    `INSERT INTO time_blocks (block_type, start_time, end_time, duration, earned_rest_duration, is_manual, tag, note, created_at)
+     VALUES ($1, $2, $3, $4, $5, 1, $6, $7, $8)`,
+    [
+      params.block_type,
+      now - durationSec * 1000, // start = now - duration
+      now,                       // end = now
+      durationSec,
+      earned,
+      params.tag || null,
+      params.note || null,
+      now,
+    ]
+  );
+}
+
 // --- Query ---
 
 export async function getTodayBlocks(): Promise<TimeBlock[]> {
@@ -142,6 +174,102 @@ function mapRow(r: TimeBlockRow): TimeBlock {
     note: r.note,
     created_at: r.created_at,
   };
+}
+
+// --- Stats queries ---
+
+export interface StatsResult {
+  focusSec: number;
+  breakSec: number;
+  sessionCount: number;
+}
+
+export interface BarDatum {
+  label: string;
+  focusSec: number;
+  breakSec: number;
+}
+
+export async function getStats(daysBack: number): Promise<StatsResult> {
+  const d = await getDb();
+  const since = new Date().getTime() - daysBack * 86400000;
+
+  const focusRow = await d.select<[{ total: number }]>(
+    "SELECT COALESCE(SUM(duration), 0) as total FROM time_blocks WHERE block_type = 'work' AND start_time >= $1",
+    [since]
+  );
+  const breakRow = await d.select<[{ total: number }]>(
+    "SELECT COALESCE(SUM(duration), 0) as total FROM time_blocks WHERE block_type = 'rest' AND start_time >= $1",
+    [since]
+  );
+  const countRow = await d.select<[{ cnt: number }]>(
+    "SELECT COUNT(*) as cnt FROM time_blocks WHERE block_type = 'work' AND start_time >= $1",
+    [since]
+  );
+
+  return {
+    focusSec: focusRow[0]?.total ?? 0,
+    breakSec: breakRow[0]?.total ?? 0,
+    sessionCount: countRow[0]?.cnt ?? 0,
+  };
+}
+
+// Bar chart data: daily for the past N days
+export async function getDailyBars(days: number): Promise<BarDatum[]> {
+  const d = await getDb();
+  const since = new Date().getTime() - days * 86400000;
+  const rows = await d.select<Array<{ d: string; f: number; b: number }>>(
+    `SELECT date(start_time/1000, 'unixepoch') as d,
+            COALESCE(SUM(CASE WHEN block_type='work' THEN duration ELSE 0 END), 0) as f,
+            COALESCE(SUM(CASE WHEN block_type='rest' THEN duration ELSE 0 END), 0) as b
+     FROM time_blocks WHERE start_time >= $1
+     GROUP BY d ORDER BY d ASC`,
+    [since]
+  );
+  return rows.map((r) => {
+    const t = new Date(r.d);
+    const label = t.toLocaleDateString("en-US", { weekday: "short" });
+    return { label, focusSec: r.f, breakSec: r.b };
+  });
+}
+
+// Weekly bars: past N weeks
+export async function getWeeklyBars(weeks: number): Promise<BarDatum[]> {
+  const d = await getDb();
+  const since = new Date().getTime() - weeks * 7 * 86400000;
+  const rows = await d.select<Array<{ w: string; f: number; b: number }>>(
+    `SELECT strftime('%Y-W%W', start_time/1000, 'unixepoch') as w,
+            COALESCE(SUM(CASE WHEN block_type='work' THEN duration ELSE 0 END), 0) as f,
+            COALESCE(SUM(CASE WHEN block_type='rest' THEN duration ELSE 0 END), 0) as b
+     FROM time_blocks WHERE start_time >= $1
+     GROUP BY w ORDER BY w ASC`,
+    [since]
+  );
+  return rows.map((r) => {
+    const parts = r.w.split("-W");
+    const label = `W${parseInt(parts[1])}`;
+    return { label, focusSec: r.f, breakSec: r.b };
+  });
+}
+
+// Monthly bars: past N months
+export async function getMonthlyBars(months: number): Promise<BarDatum[]> {
+  const d = await getDb();
+  const since = new Date().getTime() - months * 30 * 86400000;
+  const rows = await d.select<Array<{ m: string; f: number; b: number }>>(
+    `SELECT strftime('%Y-%m', start_time/1000, 'unixepoch') as m,
+            COALESCE(SUM(CASE WHEN block_type='work' THEN duration ELSE 0 END), 0) as f,
+            COALESCE(SUM(CASE WHEN block_type='rest' THEN duration ELSE 0 END), 0) as b
+     FROM time_blocks WHERE start_time >= $1
+     GROUP BY m ORDER BY m ASC`,
+    [since]
+  );
+  return rows.map((r) => {
+    const parts = r.m.split("-");
+    const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const label = monthNames[parseInt(parts[1]) - 1];
+    return { label, focusSec: r.f, breakSec: r.b };
+  });
 }
 
 // --- Helpers ---

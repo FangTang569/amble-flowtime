@@ -23,118 +23,185 @@
     }
   </script>
   <link rel="stylesheet" href="/src/style.css" />
+  <style>
+    /* Segmented control slider */
+    #seg-slider {
+      transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    #seg-slider.left { transform: translateX(0); }
+    #seg-slider.right { transform: translateX(100%); }
+  </style>
 </head>
 <body class="h-full bg-white text-neutral-800 antialiased">
 
+  <!-- Custom Title Bar -->
+  <div id="titlebar" class="fixed top-0 left-0 right-0 h-8 bg-white flex items-center justify-between px-3 z-50"
+    style="-webkit-app-region: drag;">
+    <p class="text-neutral-400 text-xs tracking-[0.2em] uppercase">amble</p>
+    <div class="flex items-center gap-1.5" style="-webkit-app-region: no-drag;">
+      <!-- PiP -->
+      <button id="btn-overlay" class="text-neutral-400 hover:text-accent transition-colors cursor-pointer p-1" title="Picture in Picture">
+        <svg width="16" height="13" viewBox="0 0 20 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="1" y="1" width="14" height="12" rx="2" />
+          <rect x="10" y="8" width="8" height="6" rx="1.5" fill="currentColor" opacity="0.3" />
+        </svg>
+      </button>
+      <span class="w-px h-4 bg-neutral-200 mx-0.5"></span>
+      <!-- Window controls -->
+      <button id="btn-minimize" class="text-neutral-400 hover:text-neutral-600 transition-colors cursor-pointer p-1" title="Minimize">
+        <svg width="12" height="12" viewBox="0 0 12 12"><rect x="1" y="5" width="10" height="1.5" rx="0.5" fill="currentColor"/></svg>
+      </button>
+      <button id="btn-maximize" class="text-neutral-400 hover:text-neutral-600 transition-colors cursor-pointer p-1" title="Maximize">
+        <svg width="12" height="12" viewBox="0 0 12 12"><rect x="1.5" y="1.5" width="9" height="9" rx="1" stroke="currentColor" stroke-width="1.5" fill="none"/></svg>
+      </button>
+      <button id="btn-close" class="text-neutral-400 hover:text-red-500 transition-colors cursor-pointer p-1" title="Close">
+        <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M1 1l10 10M11 1L1 11"/></svg>
+      </button>
+    </div>
+  </div>
+
   <!-- App Shell -->
-  <div id="app" class="h-full flex flex-col items-center overflow-y-auto px-6 py-8 select-none">
+  <div id="app" class="h-full flex flex-col items-center overflow-y-auto px-6 pt-10 pb-8 select-none">
 
-    <!-- Brand wordmark -->
-    <p class="text-neutral-400 text-xs tracking-[0.2em] uppercase mb-8">amble</p>
-
-    <!-- State label (shown during rest) -->
-    <p id="state-label" class="text-accent text-sm font-medium mb-2 hidden"></p>
-
-    <!-- Timer display -->
-    <div id="timer-container" class="mb-8">
-      <span id="timer-minutes" class="font-mono text-7xl font-light tracking-tight tabular-nums">00</span>
-      <span id="timer-colon" class="timer-colon font-mono text-7xl font-light tracking-tight tabular-nums">:</span>
-      <span id="timer-seconds" class="font-mono text-7xl font-light tracking-tight tabular-nums">00</span>
-    </div>
-
-    <!-- Ratio control -->
-    <div class="w-full max-w-xs mb-6">
-      <div class="flex items-center justify-between mb-1.5">
-        <label for="ratio-slider" class="text-neutral-500 text-sm">Rest ratio</label>
-        <span id="ratio-display" class="text-neutral-600 text-sm font-mono tabular-nums">20% (work 5:1)</span>
-      </div>
-      <input
-        id="ratio-slider"
-        type="range"
-        min="5"
-        max="100"
-        value="20"
-        step="1"
-        class="w-full h-1.5 rounded-full cursor-pointer"
-      />
-      <div class="flex justify-between text-neutral-400 text-xs mt-1">
-        <span>5%</span>
-        <span>50%</span>
-        <span>100%</span>
-      </div>
-    </div>
-
-    <!-- Rest preview panel (conditional) -->
-    <div id="rest-preview" class="w-full max-w-xs bg-neutral-50 border border-neutral-200 rounded-xl p-4 mb-6 hidden transition-opacity duration-300">
-      <div class="flex justify-between items-center mb-2">
-        <span class="text-neutral-500 text-sm">Worked</span>
-        <span id="preview-work-time" class="text-neutral-700 text-sm font-mono tabular-nums">00:00</span>
-      </div>
-      <div class="flex justify-between items-center">
-        <span class="text-accent text-sm">Rest</span>
-        <span id="preview-rest-time" class="text-accent text-sm font-mono tabular-nums">00:00</span>
-      </div>
-    </div>
-
-    <!-- Control buttons -->
-    <div id="controls" class="flex flex-col items-center gap-3 w-full max-w-xs">
-
-      <!-- Primary action row -->
-      <div class="flex items-center gap-3">
-        <button id="btn-start"
-          class="bg-accent hover:bg-teal-300 text-neutral-950 rounded-full transition-colors cursor-pointer w-12 h-12 flex items-center justify-center">
-          <svg width="18" height="20" viewBox="0 0 18 20" fill="currentColor" class="ml-1.5">
-            <path d="M0 0v20l18-10z"/>
-          </svg>
+    <!-- Sub-header: segmented control + quick start -->
+    <div class="w-full max-w-xs flex items-center justify-between mb-6">
+      <div id="seg-control" class="relative bg-neutral-200 rounded-xl p-0.5 flex">
+        <div id="seg-slider" class="absolute left-0.5 top-0.5 w-7 h-7 bg-white rounded-lg shadow-sm left"></div>
+        <button id="seg-timer" class="relative z-10 w-7 h-7 flex items-center justify-center cursor-pointer" title="Timer">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         </button>
-        <button id="btn-pause"
-          class="bg-neutral-200 hover:bg-neutral-300 text-neutral-800 font-semibold px-10 py-3 rounded-full transition-colors cursor-pointer text-base hidden">
-          Pause
-        </button>
-        <button id="btn-resume"
-          class="bg-accent hover:bg-teal-300 text-neutral-950 font-semibold px-10 py-3 rounded-full transition-colors cursor-pointer text-base hidden">
-          Resume
-        </button>
-        <button id="btn-rest"
-          class="bg-accent hover:bg-teal-300 text-neutral-950 font-semibold px-10 py-3 rounded-full transition-colors cursor-pointer text-base hidden">
-          Start Rest
+        <button id="seg-stats" class="relative z-10 w-7 h-7 flex items-center justify-center cursor-pointer text-neutral-400" title="Stats">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
         </button>
       </div>
-
-      <!-- End session link -->
-      <button id="btn-stop"
-        class="text-neutral-400 hover:text-neutral-600 text-sm underline underline-offset-4 transition-colors cursor-pointer hidden">
-        End Session
-      </button>
-
-      <!-- Overlay toggle -->
-      <button id="btn-overlay"
-        class="text-neutral-500 hover:text-accent text-xs transition-colors cursor-pointer mt-1">
-        Show Overlay
+      <button id="btn-start-top"
+        class="bg-accent hover:bg-teal-300 text-neutral-950 rounded-full transition-colors cursor-pointer w-7 h-7 flex items-center justify-center">
+        <svg width="11" height="12" viewBox="0 0 18 20" fill="currentColor" class="ml-0.5"><path d="M0 0v20l18-10z"/></svg>
       </button>
     </div>
 
-    <!-- Time block timeline -->
-    <div id="timeline-section" class="w-full max-w-xs mt-6 hidden">
-      <div class="flex items-center justify-between mb-2">
-        <div class="flex items-center gap-1.5">
-          <p class="text-neutral-400 text-xs tracking-[0.2em] uppercase">Flow</p>
-          <button id="timeline-scale" class="text-neutral-300 text-xs hover:text-accent transition-colors cursor-pointer font-mono tabular-nums">2h</button>
+    <!-- ===== Timer Panel ===== -->
+    <div id="panel-timer" class="w-full max-w-xs flex flex-col items-center">
+
+      <!-- State label (shown during rest) -->
+      <p id="state-label" class="text-accent text-sm font-medium mb-2 hidden"></p>
+
+      <!-- Timer display -->
+      <div id="timer-container" class="mb-8">
+        <span id="timer-minutes" class="font-mono text-7xl font-light tracking-tight tabular-nums">00</span>
+        <span id="timer-colon" class="timer-colon font-mono text-7xl font-light tracking-tight tabular-nums">:</span>
+        <span id="timer-seconds" class="font-mono text-7xl font-light tracking-tight tabular-nums">00</span>
+      </div>
+
+      <!-- Ratio control -->
+      <div class="w-full mb-6">
+        <div class="flex items-center justify-between mb-1.5">
+          <label for="ratio-slider" class="text-neutral-500 text-sm">Rest ratio</label>
+          <span id="ratio-display" class="text-neutral-600 text-sm font-mono tabular-nums">20% (work 5:1)</span>
         </div>
-        <p id="timeline-total" class="text-neutral-400 text-xs font-mono tabular-nums"></p>
+        <input id="ratio-slider" type="range" min="5" max="100" value="20" step="1"
+          class="w-full h-1.5 rounded-full cursor-pointer" />
+        <div class="flex justify-between text-neutral-400 text-xs mt-1">
+          <span>5%</span><span>50%</span><span>100%</span>
+        </div>
       </div>
-      <div id="timeline-rows" class="flex flex-col gap-2"></div>
-      <div id="timeline-labels" class="flex justify-between mt-1.5"></div>
+
+      <!-- Rest preview panel (conditional) -->
+      <div id="rest-preview" class="w-full bg-neutral-50 border border-neutral-200 rounded-xl p-4 mb-6 hidden transition-opacity duration-300">
+        <div class="flex justify-between items-center mb-2">
+          <span class="text-neutral-500 text-sm">Worked</span>
+          <span id="preview-work-time" class="text-neutral-700 text-sm font-mono tabular-nums">00:00</span>
+        </div>
+        <div class="flex justify-between items-center">
+          <span class="text-accent text-sm">Rest</span>
+          <span id="preview-rest-time" class="text-accent text-sm font-mono tabular-nums">00:00</span>
+        </div>
+      </div>
+
+      <!-- Control buttons -->
+      <div id="controls" class="flex flex-col items-center gap-3 w-full">
+        <div class="flex items-center gap-3">
+          <button id="btn-start"
+            class="bg-accent hover:bg-teal-300 text-neutral-950 rounded-full transition-colors cursor-pointer w-12 h-12 flex items-center justify-center">
+            <svg width="18" height="20" viewBox="0 0 18 20" fill="currentColor" class="ml-1.5"><path d="M0 0v20l18-10z"/></svg>
+          </button>
+          <button id="btn-pause"
+            class="bg-neutral-200 hover:bg-neutral-300 text-neutral-800 font-semibold px-10 py-3 rounded-full transition-colors cursor-pointer text-base hidden">Pause</button>
+          <button id="btn-resume"
+            class="bg-accent hover:bg-teal-300 text-neutral-950 font-semibold px-10 py-3 rounded-full transition-colors cursor-pointer text-base hidden">Resume</button>
+          <button id="btn-rest"
+            class="bg-accent hover:bg-teal-300 text-neutral-950 font-semibold px-10 py-3 rounded-full transition-colors cursor-pointer text-base hidden">Start Rest</button>
+        </div>
+        <button id="btn-stop"
+          class="text-neutral-400 hover:text-neutral-600 text-sm underline underline-offset-4 transition-colors cursor-pointer hidden">End Session</button>
+      </div>
+
+      <!-- Time block timeline -->
+      <div id="timeline-section" class="w-full mt-6 hidden">
+        <div class="flex items-center justify-between mb-2">
+          <div class="flex items-center gap-1.5">
+            <p class="text-neutral-400 text-xs tracking-[0.2em] uppercase">Flow</p>
+            <button id="timeline-scale" class="text-neutral-300 text-xs hover:text-accent transition-colors cursor-pointer font-mono tabular-nums">2h</button>
+          </div>
+          <p id="timeline-total" class="text-neutral-400 text-xs font-mono tabular-nums"></p>
+        </div>
+        <div id="timeline-rows" class="flex flex-col gap-2"></div>
+        <div id="timeline-labels" class="flex justify-between mt-1.5"></div>
+      </div>
+
+      <!-- Quick-add entry -->
+      <div id="quick-add" class="w-full mt-6">
+        <p class="text-neutral-400 text-xs tracking-[0.2em] uppercase mb-3">Quick Add</p>
+        <div class="flex items-center gap-2">
+          <select id="qa-type" class="bg-neutral-100 border border-neutral-200 rounded-lg px-2 py-1.5 text-sm text-neutral-700 cursor-pointer">
+            <option value="work">Focus</option>
+            <option value="rest">Break</option>
+          </select>
+          <input id="qa-duration" type="number" min="1" max="480" value="25" placeholder="min"
+            class="bg-neutral-100 border border-neutral-200 rounded-lg px-2 py-1.5 text-sm text-neutral-700 w-14 font-mono tabular-nums" />
+          <span class="text-neutral-400 text-xs">min</span>
+          <button id="qa-add"
+            class="bg-accent hover:bg-teal-300 text-neutral-950 rounded-lg p-2 transition-colors cursor-pointer flex items-center justify-center">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+              <path d="M8 3v10M3 8h10"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
     </div>
 
-    <!-- Today's sessions -->
-    <div id="history-section" class="w-full max-w-xs mt-6 hidden">
-      <div class="flex items-center justify-between mb-3">
-        <p class="text-neutral-400 text-xs tracking-[0.2em] uppercase">Today</p>
-        <p id="history-stats" class="text-neutral-400 text-xs font-mono tabular-nums"></p>
+    <!-- ===== Stats Panel ===== -->
+    <div id="panel-stats" class="w-full max-w-xs flex flex-col items-center hidden">
+
+      <!-- Stats content -->
+      <div id="stats-period" class="flex gap-1 mb-6">
+        <button id="stat-week" class="bg-neutral-200 rounded-full px-3 py-1 text-xs font-semibold text-neutral-800 cursor-pointer transition-colors">Week</button>
+        <button id="stat-month" class="text-neutral-400 hover:text-neutral-600 rounded-full px-3 py-1 text-xs cursor-pointer transition-colors">Month</button>
+        <button id="stat-year" class="text-neutral-400 hover:text-neutral-600 rounded-full px-3 py-1 text-xs cursor-pointer transition-colors">Year</button>
       </div>
-      <div id="history-list" class="hidden"></div>
-      <p id="history-empty" class="text-neutral-400 text-sm text-center">No sessions yet</p>
+
+      <!-- Summary cards -->
+      <div class="w-full flex gap-2 mb-6">
+        <div class="flex-1 bg-neutral-50 rounded-xl px-3 py-2 text-center">
+          <p class="text-neutral-400 text-xs">Time</p>
+          <p id="stat-focus" class="text-neutral-800 text-sm font-semibold font-mono tabular-nums">0m</p>
+        </div>
+        <div class="flex-1 bg-neutral-50 rounded-xl px-3 py-2 text-center">
+          <p class="text-neutral-400 text-xs">Break %</p>
+          <p id="stat-break" class="text-neutral-800 text-sm font-semibold font-mono tabular-nums">0%</p>
+        </div>
+        <div class="flex-1 bg-neutral-50 rounded-xl px-3 py-2 text-center">
+          <p class="text-neutral-400 text-xs">Sessions</p>
+          <p id="stat-count" class="text-neutral-800 text-sm font-semibold font-mono tabular-nums">0</p>
+        </div>
+      </div>
+
+      <!-- Bar chart -->
+      <div id="bar-chart" class="w-full flex items-end gap-1" style="height:120px">
+        <!-- bars rendered by JS -->
+      </div>
+
     </div>
 
   </div>

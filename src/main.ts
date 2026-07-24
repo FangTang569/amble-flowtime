@@ -11,64 +11,6 @@ const timer = new FlowTimer(0.20);
 // --- Mini overlay ---
 let overlayWindow: WebviewWindow | null = null;
 
-export async function toggleOverlay(): Promise<boolean> {
-  try {
-    if (overlayWindow) {
-      // Dual-path: try direct close + event fallback
-      try { await overlayWindow.close(); } catch { emit("close-overlay"); }
-      overlayWindow = null;
-      return false;
-    }
-
-    // Ensure no stale window with same label
-    const stale = await WebviewWindow.getByLabel("mini");
-    if (stale) {
-      try { await stale.close(); } catch { emit("close-overlay"); }
-      await new Promise(r => setTimeout(r, 200));
-    }
-
-    const win = getCurrentWindow();
-    const pos = await win.outerPosition();
-    const size = await win.innerSize();
-    const sf = await win.scaleFactor();
-    const x = Math.round(pos.x / sf + size.width / sf + 12);
-
-    overlayWindow = new WebviewWindow("mini", {
-      url: "/mini.html",
-      width: 170,
-      height: 40,
-      x,
-      y: 12,
-      decorations: false,
-      resizable: false,
-      alwaysOnTop: true,
-      skipTaskbar: true,
-      shadow: false,
-    });
-
-    overlayWindow.once("tauri://destroyed", () => {
-      overlayWindow = null;
-      updateOverlayButton(false);
-    });
-
-    return true;
-  } catch (e) {
-    console.error("toggleOverlay error:", e);
-    return false;
-  }
-}
-
-function updateOverlayButton(visible: boolean) {
-  const btn = document.getElementById("btn-overlay");
-  if (!btn) return;
-  btn.textContent = visible ? "Hide Overlay" : "Show Overlay";
-  if (visible) {
-    btn.className = "text-accent text-xs transition-colors cursor-pointer mt-1 font-medium";
-  } else {
-    btn.className = "text-neutral-400 hover:text-accent text-xs transition-colors cursor-pointer mt-1";
-  }
-}
-
 // --- Timer setup ---
 setupUI(timer);
 
@@ -92,10 +34,49 @@ timer.onSessionEnd(async (data) => {
   await renderHistory();
 });
 
-// Overlay toggle button
+// Window controls
+document.getElementById("btn-minimize")?.addEventListener("click", () => getCurrentWindow().minimize());
+document.getElementById("btn-maximize")?.addEventListener("click", () => getCurrentWindow().toggleMaximize());
+document.getElementById("btn-close")?.addEventListener("click", () => getCurrentWindow().close());
+
+// Overlay toggle button — PiP: just show the mini overlay
 document.getElementById("btn-overlay")?.addEventListener("click", async () => {
-  const visible = await toggleOverlay();
-  updateOverlayButton(visible);
+  // Close stale if any
+  const stale = await WebviewWindow.getByLabel("mini");
+  if (stale) {
+    try { await stale.close(); } catch { emit("close-overlay"); }
+    await new Promise(r => setTimeout(r, 200));
+    overlayWindow = null;
+  }
+
+  if (overlayWindow) {
+    try { await overlayWindow.close(); } catch { emit("close-overlay"); }
+    overlayWindow = null;
+    return;
+  }
+
+  const win = getCurrentWindow();
+  const pos = await win.outerPosition();
+  const size = await win.innerSize();
+  const sf = await win.scaleFactor();
+  const x = Math.round(pos.x / sf + size.width / sf + 12);
+
+  overlayWindow = new WebviewWindow("mini", {
+    url: "/mini.html",
+    width: 180,
+    height: 40,
+    x,
+    y: 12,
+    decorations: false,
+    resizable: false,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    shadow: false,
+  });
+
+  overlayWindow.once("tauri://destroyed", () => {
+    overlayWindow = null;
+  });
 });
 
 // Startup: backup database
