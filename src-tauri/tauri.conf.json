@@ -15,9 +15,9 @@
         "label": "main",
         "title": "amble",
         "width": 400,
-        "height": 540,
+        "height": 580,
         "minWidth": 320,
-        "minHeight": 420,
+        "minHeight": 460,
         "resizable": true,
         "center": true,
         "decorations": false

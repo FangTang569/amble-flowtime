@@ -17,7 +17,7 @@ and pre-fills the rest countdown.
 |-------|--------|-------|
 | Desktop shell | Tauri v2 | Native windows, ~3-5 MB bundle |
 | Frontend tooling | Vite 6 + TypeScript 5.7 | HMR, strict type checking |
-| CSS | Tailwind CSS v3 via Play CDN | Quick prototyping; migrate to CLI for production |
+| CSS | Tailwind CSS v3 via CLI + PostCSS | Fully offline build, Inter font bundled locally |
 | State | Plain class (FlowTimer) | Zero deps, observer pattern |
 | Backend (Rust) | Minimal scaffold | Timer logic is pure frontend; Rust reserved for future |
 
@@ -26,27 +26,32 @@ and pre-fills the rest countdown.
 ```
 amble-flowtime/
 ├── CLAUDE.md                  # This file
-├── index.html                 # Vite entry + Tailwind CDN + app shell
+├── index.html                 # Vite entry + app shell
+├── mini.html                  # Mini overlay window
 ├── package.json               # Node deps
 ├── tsconfig.json              # Strict TS config
-├── vite.config.ts             # Vite + Tauri-aware config
+├── vite.config.ts             # Vite + multi-page build
+├── tailwind.config.js         # Tailwind theme (accent, Inter font)
+├── postcss.config.js          # PostCSS with Tailwind + Autoprefixer
 ├── src/
 │   ├── main.ts                # Bootstrap: create timer, wire UI & storage
 │   ├── timer.ts               # FlowTimer class (state machine + timing)
 │   ├── ui.ts                  # DOM manipulation, render(), setupUI()
 │   ├── types.ts               # Shared TypeScript types
-│   ├── storage.ts             # localStorage session persistence
-│   └── style.css              # Custom CSS (fonts, animations, scrollbar)
+│   ├── storage.ts             # SQLite session persistence
+│   ├── overlay.ts             # Mini overlay window script
+│   └── style.css              # Tailwind directives + custom CSS
 ├── src-tauri/
-│   ├── Cargo.toml             # tauri 2, serde, serde_json
+│   ├── Cargo.toml             # tauri 2, serde, serde_json, tauri-plugin-sql
 │   ├── build.rs               # tauri-build
-│   ├── tauri.conf.json        # Window 400×440, centered, resizable
+│   ├── tauri.conf.json        # Window 400×540, borderless, resizable
 │   ├── capabilities/
-│   │   └── default.json       # core:default permission
+│   │   └── default.json       # App permissions
 │   ├── icons/                 # App icons
 │   └── src/
-│       ├── lib.rs             # Minimal Tauri builder
-│       └── main.rs            # Desktop entry point
+│       ├── lib.rs             # Tauri builder with plugins
+│       ├── main.rs            # Desktop entry point
+│       └── backup.rs          # Database backup command
 └── todo.md                    # Project roadmap
 ```
 
@@ -116,16 +121,15 @@ npm run tauri build
 - Microsoft Visual C++ Build Tools
 - WebView2 runtime (pre-installed on Windows 11)
 
-## Known Limitations (Step 1)
+## Known Limitations
 
 | Limitation | Mitigation |
 |------------|------------|
-| Tailwind via CDN (needs internet) | Documented; migrate to CLI build in future step |
 | Timer format MM:SS only | Sufficient for < 99 min sessions; extend later |
 | No notifications on rest complete | Add tauri-plugin-notification later |
-| No persistence (data lost on close) | localStorage session history added |
 | No system tray / background mode | Tauri plugin in future step |
 | No sound alerts | Future enhancement |
+| Fonts bundled (165 KB) | Acceptable; only Latin subset loaded |
 
 ## Future Roadmap (from todo.md)
 
@@ -136,7 +140,7 @@ npm run tauri build
    - Rest overtime goes negative silently (no punishment)
    - Slider to quickly record actual duration for long sessions
 4. **Production polish**:
-   - Replace Tailwind CDN with CLI/PostCSS build
+   - ~~Replace Tailwind CDN with CLI/PostCSS build~~ ✅
    - Add app icons
    - System tray integration
    - Notifications on state transitions

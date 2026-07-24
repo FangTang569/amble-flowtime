@@ -45,18 +45,31 @@ function formatMinutes(ms: number): { minutes: string; seconds: string } {
 function formatRatio(ratio: number): string {
   const pct = Math.round(ratio * 100);
   const workParts = Math.round(1 / ratio);
-  return `${pct}% (work ${workParts}:1)`;
+  return `${pct}% ≈ (work ${workParts}:1)`;
 }
 
 // --- Render ---
 
 export function render(snap: TimerSnapshot): void {
-  // State label
-  if (snap.state === "resting") {
+  // State label + timer color
+  const resting = snap.state === "resting";
+  if (resting) {
     elStateLabel.textContent = "Resting…";
     elStateLabel.classList.remove("hidden");
+    elMinutes.classList.add("text-emerald-500");
+    elSeconds.classList.add("text-emerald-500");
+    elColon.classList.add("text-emerald-500");
+    elMinutes.classList.remove("text-neutral-800");
+    elSeconds.classList.remove("text-neutral-800");
+    elColon.classList.remove("text-neutral-800");
   } else {
     elStateLabel.classList.add("hidden");
+    elMinutes.classList.add("text-neutral-800");
+    elSeconds.classList.add("text-neutral-800");
+    elColon.classList.add("text-neutral-800");
+    elMinutes.classList.remove("text-emerald-500");
+    elSeconds.classList.remove("text-emerald-500");
+    elColon.classList.remove("text-emerald-500");
   }
 
   // Timer display
@@ -182,10 +195,10 @@ export function setupUI(timer: FlowTimer): void {
     if (showStats) {
       elPanelTimer.classList.add("hidden");
       elPanelStats.classList.remove("hidden");
-      elSegTimer.classList.add("text-neutral-400");
+      elSegTimer.classList.add("text-neutral-500");
       elSegTimer.classList.remove("text-neutral-800");
       elSegStats.classList.add("text-neutral-800");
-      elSegStats.classList.remove("text-neutral-400");
+      elSegStats.classList.remove("text-neutral-500");
       elSegSlider.classList.remove("left");
       elSegSlider.classList.add("right");
       renderTimeline();
@@ -195,8 +208,8 @@ export function setupUI(timer: FlowTimer): void {
       elPanelTimer.classList.remove("hidden");
       elPanelStats.classList.add("hidden");
       elSegTimer.classList.add("text-neutral-800");
-      elSegTimer.classList.remove("text-neutral-400");
-      elSegStats.classList.add("text-neutral-400");
+      elSegTimer.classList.remove("text-neutral-500");
+      elSegStats.classList.add("text-neutral-500");
       elSegStats.classList.remove("text-neutral-800");
       elSegSlider.classList.remove("right");
       elSegSlider.classList.add("left");
@@ -224,7 +237,7 @@ export function setupUI(timer: FlowTimer): void {
         if (p === period) {
           b.className = "bg-neutral-200 rounded-full px-3 py-1 text-xs font-semibold text-neutral-800 cursor-pointer transition-colors";
         } else {
-          b.className = "text-neutral-400 hover:text-neutral-600 rounded-full px-3 py-1 text-xs cursor-pointer transition-colors";
+          b.className = "text-neutral-500 hover:text-neutral-700 rounded-full px-3 py-1 text-xs cursor-pointer transition-colors";
         }
       });
       renderStats();
@@ -272,7 +285,7 @@ export async function renderHistory(): Promise<void> {
       <div class="flex items-center gap-2">
         ${dot}
         <span class="text-neutral-700 text-sm">${label}</span>
-        <span class="text-neutral-400 text-xs">${time}</span>
+        <span class="text-neutral-500 text-xs">${time}</span>
       </div>
       <span class="text-neutral-500 text-xs font-mono tabular-nums">${formatDuration(b.duration)}</span>
     </div>
@@ -378,8 +391,8 @@ export async function renderTimeline(): Promise<void> {
 
   // Labels
   elLabels.innerHTML = `
-    <span class="text-neutral-400 text-xs">${formatTimestamp(firstStart)}</span>
-    <span class="text-neutral-400 text-xs">${formatTimestamp(lastEnd)}</span>
+    <span class="text-neutral-500 text-xs">${formatTimestamp(firstStart)}</span>
+    <span class="text-neutral-500 text-xs">${formatTimestamp(lastEnd)}</span>
   `;
 }
 
@@ -417,7 +430,7 @@ export async function renderStats(): Promise<void> {
   }
 
   if (bars.length === 0) {
-    elChart.innerHTML = `<p class="text-neutral-400 text-sm w-full text-center">No data</p>`;
+    elChart.innerHTML = `<p class="text-neutral-500 text-sm w-full text-center">No data</p>`;
     return;
   }
 
@@ -430,11 +443,11 @@ export async function renderStats(): Promise<void> {
 
     return `
       <div class="flex-1 h-full flex flex-col items-center justify-end gap-0.5">
-        <span class="text-neutral-400 text-xs font-mono tabular-nums leading-none">${total > 0 ? formatDuration(total) : ""}</span>
+        <span class="text-neutral-500 text-xs font-mono tabular-nums leading-none">${total > 0 ? formatDuration(total) : ""}</span>
         <div class="w-full rounded-sm bg-accent relative overflow-hidden" style="height:${heightPct}%">
           <div class="bg-neutral-300 w-full absolute bottom-0 rounded-b-sm" style="height:${breakPct}%"></div>
         </div>
-        <span class="text-neutral-400 text-xs">${b.label}</span>
+        <span class="text-neutral-500 text-xs">${b.label}</span>
       </div>
     `;
   }).join("");

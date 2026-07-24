@@ -1,3 +1,6 @@
+import "@fontsource/inter/latin-300.css";
+import "@fontsource/inter/latin-400.css";
+import "@fontsource/inter/latin-600.css";
 import { FlowTimer } from "./timer";
 import { render, renderHistory, renderTimeline, setupUI } from "./ui";
 import { saveSession } from "./storage";
@@ -25,6 +28,7 @@ timer.onTick((snap) => {
   emit("timer-update", {
     minutes: String(m).padStart(2, "0"),
     seconds: String(s).padStart(2, "0"),
+    state: snap.state,
   });
 });
 

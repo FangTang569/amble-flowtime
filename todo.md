@@ -46,3 +46,7 @@ description: "一个极简的心流时间法践行工具"
 - [x] Step 5: 统计与零挫败感 (2026-07-24)
   - 周/月/年统计 + 柱状图
   - 休息超时惩罚 / 超长时间滑块 — 已取消
+- [x] Optimize: 离线可用 (2026-07-24)
+  - Tailwind CSS CDN → CLI + PostCSS 本地构建
+  - Google Fonts → @fontsource/inter Latin 子集本地托管
+  - 生产构建完全离线可用
