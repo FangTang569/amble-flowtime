@@ -32,6 +32,20 @@ jobs:
           cd src-tauri
           cargo build --target aarch64-apple-ios --release
 
+      - name: Debug xcode-script
+        run: |
+          echo "=== generated script file ==="
+          find build -name "Script-*.sh" | head -3 | xargs -I{} sh -c 'echo "--- {} ---"; cat {}'
+          echo "=== manual xcode-script run ==="
+          export SDKROOT=$(xcrun --sdk iphoneos --show-sdk-path)
+          export CONFIGURATION=Release
+          export ARCHS=arm64
+          export PLATFORM_DISPLAY_NAME=iOS
+          cd src-tauri
+          npx tauri ios xcode-script -v --platform iOS --sdk-root "$SDKROOT" \
+            --framework-search-paths "" --header-search-paths "" \
+            --gcc-preprocessor-definitions "" --configuration Release arm64
+
       - name: Build app (unsigned)
         run: |
           xcodebuild -project src-tauri/gen/apple/amble.xcodeproj \
