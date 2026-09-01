@@ -7,9 +7,9 @@ jobs:
   build-ios:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 20
           cache: npm
@@ -30,7 +30,7 @@ jobs:
       - name: Build app (unsigned)
         run: |
           xcodebuild -project src-tauri/gen/apple/amble.xcodeproj \
-            -scheme amble \
+            -scheme amble_iOS \
             -configuration Release \
             -sdk iphoneos \
             -derivedDataPath build \
@@ -45,7 +45,7 @@ jobs:
           cp -r build/Build/Products/Release-iphoneos/amble.app Payload/
           zip -r amble-ios-unsigned.ipa Payload/
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v5
         with:
           name: amble-ios-unsigned
           path: amble-ios-unsigned.ipa
