@@ -272,6 +272,78 @@ export async function getMonthlyBars(months: number): Promise<BarDatum[]> {
   });
 }
 
+// --- Stats with explicit date range ---
+
+export async function getStatsBetween(since: number, until: number): Promise<StatsResult> {
+  const d = await getDb();
+
+  const focusRow = await d.select<[{ total: number }]>(
+    "SELECT COALESCE(SUM(duration), 0) as total FROM time_blocks WHERE block_type = 'work' AND start_time >= $1 AND start_time < $2",
+    [since, until]
+  );
+  const breakRow = await d.select<[{ total: number }]>(
+    "SELECT COALESCE(SUM(duration), 0) as total FROM time_blocks WHERE block_type = 'rest' AND start_time >= $1 AND start_time < $2",
+    [since, until]
+  );
+  const countRow = await d.select<[{ cnt: number }]>(
+    "SELECT COUNT(*) as cnt FROM time_blocks WHERE block_type = 'work' AND start_time >= $1 AND start_time < $2",
+    [since, until]
+  );
+
+  return {
+    focusSec: focusRow[0]?.total ?? 0,
+    breakSec: breakRow[0]?.total ?? 0,
+    sessionCount: countRow[0]?.cnt ?? 0,
+  };
+}
+
+export async function getBarsBetween(
+  since: number,
+  until: number,
+  granularity: "day" | "week" | "month",
+): Promise<BarDatum[]> {
+  const d = await getDb();
+
+  let groupExpr: string;
+  let labelFn: (r: { period: string }) => string;
+
+  if (granularity === "day") {
+    groupExpr = "date(start_time/1000, 'unixepoch')";
+    labelFn = (r) => {
+      const t = new Date(r.period);
+      return t.toLocaleDateString("en-US", { weekday: "short" });
+    };
+  } else if (granularity === "week") {
+    groupExpr = "strftime('%Y-W%W', start_time/1000, 'unixepoch')";
+    labelFn = (r) => {
+      const parts = r.period.split("-W");
+      return `W${parseInt(parts[1])}`;
+    };
+  } else {
+    groupExpr = "strftime('%Y-%m', start_time/1000, 'unixepoch')";
+    labelFn = (r) => {
+      const parts = r.period.split("-");
+      const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+      return monthNames[parseInt(parts[1]) - 1];
+    };
+  }
+
+  const rows = await d.select<Array<{ period: string; f: number; b: number }>>(
+    `SELECT ${groupExpr} as period,
+            COALESCE(SUM(CASE WHEN block_type='work' THEN duration ELSE 0 END), 0) as f,
+            COALESCE(SUM(CASE WHEN block_type='rest' THEN duration ELSE 0 END), 0) as b
+     FROM time_blocks WHERE start_time >= $1 AND start_time < $2
+     GROUP BY period ORDER BY period ASC`,
+    [since, until]
+  );
+
+  return rows.map((r) => ({
+    label: labelFn(r),
+    focusSec: r.f,
+    breakSec: r.b,
+  }));
+}
+
 // --- Helpers ---
 
 export function formatDuration(sec: number): string {

@@ -1,8 +1,8 @@
 import type { FlowTimer } from "./timer";
 import type { TimerSnapshot } from "./types";
 import {
-  getTodayBlocks, addManualBlock, getStats,
-  getDailyBars, getWeeklyBars, getMonthlyBars,
+  getTodayBlocks, addManualBlock,
+  getStatsBetween, getBarsBetween,
   formatDuration, formatTimestamp
 } from "./storage";
 
@@ -152,6 +152,10 @@ export function setupUI(timer: FlowTimer): void {
   elBtnStop.addEventListener("click", () => timer.stop());
   elRatioSlider.addEventListener("input", () => {
     timer.setRatio(parseInt(elRatioSlider.value) / 100);
+    if (elSettingRatioSlider) {
+      elSettingRatioSlider.value = elRatioSlider.value;
+      elSettingRatioDisplay.textContent = formatRatio(parseInt(elRatioSlider.value) / 100);
+    }
   });
 
   // Timeline scale toggle
@@ -182,57 +186,77 @@ export function setupUI(timer: FlowTimer): void {
     await renderHistory();
   });
 
-  // Segmented control: switch between timer / stats views
-  let isStatsView = false;
+  // Segmented control: switch between timer / stats / settings views
+  type ViewKind = "timer" | "stats" | "settings";
+  let currentView: ViewKind = "timer";
   const elPanelTimer = document.getElementById("panel-timer")!;
   const elPanelStats = document.getElementById("panel-stats")!;
+  const elPanelSettings = document.getElementById("panel-settings")!;
   const elSegTimer = document.getElementById("seg-timer")!;
   const elSegStats = document.getElementById("seg-stats")!;
+  const elSegSettings = document.getElementById("seg-settings")!;
   const elSegSlider = document.getElementById("seg-slider")!;
+  const SLIDER_BASE = "absolute left-0.5 top-0.5 w-7 h-7 bg-white rounded-lg shadow-sm";
 
-  function switchView(showStats: boolean) {
-    isStatsView = showStats;
-    if (showStats) {
-      elPanelTimer.classList.add("hidden");
-      elPanelStats.classList.remove("hidden");
-      elSegTimer.classList.add("text-neutral-500");
-      elSegTimer.classList.remove("text-neutral-800");
-      elSegStats.classList.add("text-neutral-800");
-      elSegStats.classList.remove("text-neutral-500");
-      elSegSlider.classList.remove("left");
-      elSegSlider.classList.add("right");
-      renderTimeline();
-      renderHistory();
+  function switchTo(view: ViewKind) {
+    currentView = view;
+    elPanelTimer.classList.toggle("hidden", view !== "timer");
+    elPanelStats.classList.toggle("hidden", view !== "stats");
+    elPanelSettings.classList.toggle("hidden", view !== "settings");
+
+    const setSeg = (el: HTMLElement, active: boolean) => {
+      el.classList.toggle("text-neutral-800", active);
+      el.classList.toggle("text-neutral-500", !active);
+    };
+    setSeg(elSegTimer, view === "timer");
+    setSeg(elSegStats, view === "stats");
+    setSeg(elSegSettings, view === "settings");
+
+    const posMap: Record<ViewKind, string> = { timer: "pos-0", stats: "pos-1", settings: "pos-2" };
+    elSegSlider.className = `${SLIDER_BASE} ${posMap[view]}`;
+
+    if (view === "stats") {
       renderStats();
-    } else {
-      elPanelTimer.classList.remove("hidden");
-      elPanelStats.classList.add("hidden");
-      elSegTimer.classList.add("text-neutral-800");
-      elSegTimer.classList.remove("text-neutral-500");
-      elSegStats.classList.add("text-neutral-500");
-      elSegStats.classList.remove("text-neutral-800");
-      elSegSlider.classList.remove("right");
-      elSegSlider.classList.add("left");
     }
   }
 
-  elSegTimer.addEventListener("click", () => { if (isStatsView) switchView(false); });
-  elSegStats.addEventListener("click", () => { if (!isStatsView) switchView(true); });
+  elSegTimer.addEventListener("click", () => switchTo("timer"));
+  elSegStats.addEventListener("click", () => switchTo("stats"));
+  elSegSettings.addEventListener("click", () => switchTo("settings"));
+
+  // Setting: default ratio slider
+  const elSettingRatioSlider = document.getElementById("setting-ratio-slider") as HTMLInputElement;
+  const elSettingRatioDisplay = document.getElementById("setting-ratio-display")!;
+  elSettingRatioSlider?.addEventListener("input", () => {
+    const r = parseInt(elSettingRatioSlider.value) / 100;
+    timer.setRatio(r);
+    elSettingRatioDisplay.textContent = formatRatio(r);
+    elRatioSlider.value = elSettingRatioSlider.value;
+    localStorage.setItem("amble-default-ratio", String(r));
+  });
+
+  // Sync sliders to the timer's current ratio (restored from localStorage or default)
+  const initVal = String(Math.round(timer.getSnapshot().ratio * 100));
+  elRatioSlider.value = initVal;
+  if (elSettingRatioSlider) {
+    elSettingRatioSlider.value = initVal;
+    elSettingRatioDisplay.textContent = formatRatio(timer.getSnapshot().ratio);
+  }
 
   // Initial state: timer icon = active (darker)
   elSegTimer.classList.add("text-neutral-800");
 
   // Stats period selector
   const statButtons = [
-    { el: document.getElementById("stat-week")!, period: "week" as const, days: 7 },
-    { el: document.getElementById("stat-month")!, period: "month" as const, days: 30 },
-    { el: document.getElementById("stat-year")!, period: "year" as const, days: 365 },
+    { el: document.getElementById("stat-week")!, period: "week" as const },
+    { el: document.getElementById("stat-month")!, period: "month" as const },
+    { el: document.getElementById("stat-year")!, period: "year" as const },
   ];
 
-  statButtons.forEach(({ el, period, days }) => {
+  statButtons.forEach(({ el, period }) => {
     el.addEventListener("click", () => {
-      statsDays = days;
       statsPeriod = period;
+      statsOffset = 0;
       statButtons.forEach(({ el: b, period: p }) => {
         if (p === period) {
           b.className = "bg-neutral-200 rounded-full px-3 py-1 text-xs font-semibold text-neutral-800 cursor-pointer transition-colors";
@@ -242,6 +266,18 @@ export function setupUI(timer: FlowTimer): void {
       });
       renderStats();
     });
+  });
+
+  // Stats navigation
+  document.getElementById("stat-prev")?.addEventListener("click", () => {
+    statsOffset--;
+    renderStats();
+  });
+  document.getElementById("stat-next")?.addEventListener("click", () => {
+    if (statsOffset < 0) {
+      statsOffset++;
+      renderStats();
+    }
   });
 }
 
@@ -398,11 +434,58 @@ export async function renderTimeline(): Promise<void> {
 
 // --- Stats ---
 
-let statsDays = 7;
 let statsPeriod: "week" | "month" | "year" = "week";
+let statsOffset = 0;
+
+function getDateRange(): { since: number; until: number; label: string } {
+  const now = new Date();
+  let since: Date;
+  let until: Date;
+  let label: string;
+
+  if (statsPeriod === "week") {
+    const dow = now.getDay();
+    const monOff = dow === 0 ? -6 : 1 - dow;
+    since = new Date(now);
+    since.setDate(now.getDate() + monOff + statsOffset * 7);
+    since.setHours(0, 0, 0, 0);
+    until = new Date(since);
+    until.setDate(since.getDate() + 7);
+    const fmt = (d: Date) =>
+      d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+    const end = new Date(until);
+    end.setDate(end.getDate() - 1);
+    label = `${fmt(since)} – ${fmt(end)}, ${since.getFullYear()}`;
+  } else if (statsPeriod === "month") {
+    since = new Date(now.getFullYear(), now.getMonth() + statsOffset, 1);
+    until = new Date(now.getFullYear(), now.getMonth() + statsOffset + 1, 1);
+    label = since.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  } else {
+    since = new Date(now.getFullYear() + statsOffset, 0, 1);
+    until = new Date(now.getFullYear() + statsOffset + 1, 0, 1);
+    label = String(since.getFullYear());
+  }
+
+  return { since: since.getTime(), until: until.getTime(), label };
+}
 
 export async function renderStats(): Promise<void> {
-  const stats = await getStats(statsDays);
+  const { since, until, label } = getDateRange();
+  const stats = await getStatsBetween(since, until);
+
+  // Period label
+  const elLabel = document.getElementById("stat-range-label");
+  if (elLabel) elLabel.textContent = label;
+
+  // Nav buttons
+  const elPrev = document.getElementById("stat-prev");
+  const elNext = document.getElementById("stat-next");
+  if (elPrev) {
+    elPrev.style.visibility = "visible";
+  }
+  if (elNext) {
+    elNext.style.visibility = statsOffset === 0 ? "hidden" : "visible";
+  }
 
   // Summary cards
   const elFocus = document.getElementById("stat-focus");
@@ -420,14 +503,9 @@ export async function renderStats(): Promise<void> {
   const elChart = document.getElementById("bar-chart");
   if (!elChart) return;
 
-  let bars: Array<{ label: string; focusSec: number; breakSec: number }> = [];
-  if (statsPeriod === "week") {
-    bars = await getDailyBars(7);
-  } else if (statsPeriod === "month") {
-    bars = await getWeeklyBars(5);
-  } else {
-    bars = await getMonthlyBars(12);
-  }
+  const gran: "day" | "week" | "month" =
+    statsPeriod === "week" ? "day" : statsPeriod === "month" ? "week" : "month";
+  const bars = await getBarsBetween(since, until, gran);
 
   if (bars.length === 0) {
     elChart.innerHTML = `<p class="text-neutral-500 text-sm w-full text-center">No data</p>`;
@@ -436,9 +514,14 @@ export async function renderStats(): Promise<void> {
 
   const maxSec = Math.max(1, ...bars.map((b) => b.focusSec + b.breakSec));
 
+  // Dynamic chart height: ~30px per hour of the tallest bar
+  const maxHours = maxSec / 3600;
+  const chartPx = Math.round(Math.max(80, Math.min(280, maxHours * 30)));
+  elChart.style.height = `${chartPx}px`;
+
   elChart.innerHTML = bars.map((b) => {
     const total = b.focusSec + b.breakSec;
-    const heightPct = Math.max(4, (total / maxSec) * 100);
+    const heightPct = (total / maxSec) * 100;
     const breakPct = total > 0 ? (b.breakSec / total) * 100 : 0;
 
     return `

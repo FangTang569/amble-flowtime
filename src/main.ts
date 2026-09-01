@@ -9,7 +9,9 @@ import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { invoke } from "@tauri-apps/api/core";
 
-const timer = new FlowTimer(0.20);
+// Load saved default ratio from localStorage
+const savedRatio = parseFloat(localStorage.getItem("amble-default-ratio") || "0.20");
+const timer = new FlowTimer(savedRatio);
 
 // --- Mini overlay ---
 let overlayWindow: WebviewWindow | null = null;
