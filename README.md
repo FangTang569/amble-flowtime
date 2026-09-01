@@ -82,6 +82,14 @@ npm run tauri build
 - Rust ≥ 1.77
 - Windows 需要 Visual C++ Build Tools 与 WebView2
 
+### iOS 自用构建
+
+iOS 构建需要 macOS，Windows 用户可通过 GitHub Actions 云端构建：
+
+1. 仓库 Actions 页面 → **Build iOS (unsigned IPA)** → Run workflow
+2. 构建完成后下载 artifact（未签名 IPA）
+3. 用 [Sideloadly](https://sideloadly.io/) 登录 Apple ID 签名并安装到 iPhone（免费账号 7 天过期，需每周重签）
+
 ## 技术栈
 
 Tauri v2 · TypeScript · Tailwind CSS · SQLite

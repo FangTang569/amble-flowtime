@@ -73,6 +73,22 @@ input[type="range"]::-moz-range-track {
   opacity: 1;
 }
 
+/* iOS safe area (desktop browsers resolve env() to 0) */
+.safe-top {
+  padding-top: max(1.5rem, env(safe-area-inset-top));
+}
+.safe-bottom {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+
+/* Mobile touch polish */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+button {
+  touch-action: manipulation;
+}
+
 /* Minimal scrollbar */
 ::-webkit-scrollbar {
   width: 4px;

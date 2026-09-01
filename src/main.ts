@@ -13,6 +13,15 @@ import { invoke } from "@tauri-apps/api/core";
 const savedRatio = parseFloat(localStorage.getItem("amble-default-ratio") || "0.20");
 const timer = new FlowTimer(savedRatio);
 
+// Platform detection — mobile (iOS) has no titlebar / window controls / PiP
+const IS_MOBILE = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+if (IS_MOBILE) {
+  document.getElementById("titlebar")?.classList.add("hidden");
+  const appEl = document.getElementById("app");
+  appEl?.classList.remove("pt-10");
+  appEl?.classList.add("safe-top");
+}
+
 // --- Mini overlay ---
 let overlayWindow: WebviewWindow | null = null;
 
@@ -40,13 +49,16 @@ timer.onSessionEnd(async (data) => {
   await renderHistory();
 });
 
-// Window controls
-document.getElementById("btn-minimize")?.addEventListener("click", () => getCurrentWindow().minimize());
-document.getElementById("btn-maximize")?.addEventListener("click", () => getCurrentWindow().toggleMaximize());
-document.getElementById("btn-close")?.addEventListener("click", () => getCurrentWindow().close());
+// Window controls (desktop only)
+if (!IS_MOBILE) {
+  document.getElementById("btn-minimize")?.addEventListener("click", () => getCurrentWindow().minimize());
+  document.getElementById("btn-maximize")?.addEventListener("click", () => getCurrentWindow().toggleMaximize());
+  document.getElementById("btn-close")?.addEventListener("click", () => getCurrentWindow().close());
+}
 
-// Overlay toggle button — PiP: just show the mini overlay
+// Overlay toggle button — PiP: just show the mini overlay (desktop only)
 document.getElementById("btn-overlay")?.addEventListener("click", async () => {
+  if (IS_MOBILE) return;
   // Close stale if any
   const stale = await WebviewWindow.getByLabel("mini");
   if (stale) {
