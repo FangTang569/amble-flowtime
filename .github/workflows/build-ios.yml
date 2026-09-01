@@ -27,6 +27,11 @@ jobs:
       - name: Build frontend
         run: npm run build
 
+      - name: Build Rust library for iOS (verbose errors)
+        run: |
+          cd src-tauri
+          cargo build --target aarch64-apple-ios --release
+
       - name: Build app (unsigned)
         run: |
           xcodebuild -project src-tauri/gen/apple/amble.xcodeproj \
