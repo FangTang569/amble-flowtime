@@ -69,66 +69,118 @@
     <!-- ===== Timer Panel ===== -->
     <div id="panel-timer" class="w-full max-w-xs flex flex-col items-center">
 
-      <!-- State label (shown during rest) -->
-      <p id="state-label" class="text-emerald-500 text-sm font-medium mb-2 hidden"></p>
+      <!-- State caption -->
+      <p id="state-label"
+        class="text-emerald-500 text-xs tracking-[0.2em] uppercase mb-3 invisible">&nbsp;</p>
 
-      <!-- Timer display -->
-      <div id="timer-container" class="mb-8">
-        <span id="timer-minutes" class="font-mono text-7xl font-light tracking-tight tabular-nums text-neutral-800">00</span>
-        <span id="timer-colon" class="timer-colon font-mono text-7xl font-light tracking-tight tabular-nums text-neutral-800">:</span>
-        <span id="timer-seconds" class="font-mono text-7xl font-light tracking-tight tabular-nums text-neutral-800">00</span>
+      <!-- Two-account ledger: what this cycle has earned, and what is banked.
+           The account currently in play is solid; the dormant one fades back.
+           text-5xl is the ceiling here — text-6xl needs ~339px and the column
+           only has 320px (max-w-xs). -->
+      <div id="ledger" class="flex items-stretch justify-center mb-8">
+        <div id="earned-column" class="flex flex-col items-center">
+          <div id="earned-container" class="flex items-baseline">
+            <span id="earned-minutes"
+              class="font-mono text-5xl font-light tracking-tight tabular-nums transition-colors duration-200">00</span>
+            <span id="earned-colon"
+              class="timer-colon font-mono text-5xl font-light tracking-tight tabular-nums transition-colors duration-200">:</span>
+            <span id="earned-seconds"
+              class="font-mono text-5xl font-light tracking-tight tabular-nums transition-colors duration-200">00</span>
+          </div>
+          <span id="earned-label"
+            class="text-[10px] tracking-[0.18em] uppercase mt-2 transition-colors duration-200">EARNED</span>
+        </div>
+
+        <div class="w-px bg-neutral-200 self-stretch mx-2"></div>
+
+        <div class="flex flex-col items-center">
+          <div id="unused-container" class="flex items-baseline">
+            <span id="unused-minutes"
+              class="font-mono text-5xl font-light tracking-tight tabular-nums transition-colors duration-200">00</span>
+            <span id="unused-colon"
+              class="timer-colon font-mono text-5xl font-light tracking-tight tabular-nums transition-colors duration-200">:</span>
+            <span id="unused-seconds"
+              class="font-mono text-5xl font-light tracking-tight tabular-nums transition-colors duration-200">00</span>
+          </div>
+          <span id="unused-label"
+            class="text-[10px] tracking-[0.18em] uppercase mt-2 transition-colors duration-200">UNUSED</span>
+        </div>
       </div>
 
-      <!-- Ratio control -->
-      <div class="w-full mb-6">
-        <div class="flex items-center justify-between mb-1.5">
-          <label for="ratio-slider" class="text-neutral-500 text-sm">Rest ratio</label>
-          <span id="ratio-display" class="text-neutral-600 text-sm font-mono tabular-nums">20% (work 5:1)</span>
-        </div>
-        <input id="ratio-slider" type="range" min="5" max="100" value="20" step="1"
-          class="w-full h-1.5 rounded-full cursor-pointer" />
-        <div class="flex justify-between text-neutral-500 text-xs mt-1">
-          <span>5%</span><span>50%</span><span>100%</span>
-        </div>
-      </div>
+      <!-- Primary action: one capsule row. Children are flex-1, so whichever
+           are visible share the width — one capsule when the state has a
+           single action, three when it does not. The footprint is identical
+           in every state, so the centred panel never jumps.
 
-      <!-- Rest preview panel (conditional) -->
-      <div id="rest-preview" class="w-full bg-white border border-neutral-200 rounded-xl p-4 mb-6 hidden transition-opacity duration-300">
-        <div class="flex justify-between items-center mb-2">
-          <span class="text-neutral-500 text-sm">Worked</span>
-          <span id="preview-work-time" class="text-neutral-700 text-sm font-mono tabular-nums">00:00</span>
-        </div>
-        <div class="flex justify-between items-center">
-          <span class="text-accent text-sm">Rest</span>
-          <span id="preview-rest-time" class="text-accent text-sm font-mono tabular-nums">00:00</span>
-        </div>
-      </div>
-
-      <!-- Control buttons -->
-      <div id="controls" class="flex flex-col items-center gap-3 w-full">
-        <div class="flex items-center gap-3">
-          <button id="btn-start"
-            class="bg-accent hover:bg-teal-300 text-neutral-800 rounded-full transition-colors cursor-pointer w-12 h-12 flex items-center justify-center">
-            <svg width="18" height="20" viewBox="0 0 18 20" fill="currentColor" class="ml-1.5"><path d="M0 0v20l18-10z"/></svg>
-          </button>
-          <button id="btn-pause"
-            class="bg-neutral-200 hover:bg-neutral-300 text-neutral-800 rounded-full transition-colors cursor-pointer w-12 h-12 flex items-center justify-center hidden">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-              <rect x="6" y="4" width="4" height="16" rx="1" />
-              <rect x="14" y="4" width="4" height="16" rx="1" />
-            </svg>
-          </button>
-          <button id="btn-resume"
-            class="bg-accent hover:bg-teal-300 text-neutral-800 font-semibold px-10 py-3 rounded-full transition-colors cursor-pointer text-base hidden">Resume</button>
-          <button id="btn-rest"
-            class="bg-accent hover:bg-teal-300 text-neutral-800 font-semibold px-10 py-3 rounded-full transition-colors cursor-pointer text-base hidden">Start Rest</button>
-        </div>
+           `End` and `End Rest` are the SAME button: both call timer.stop().
+           ui.ts swaps its label and tier per state. -->
+      <div id="controls" class="w-full flex items-center gap-2 mb-10">
+        <button id="btn-start"
+          class="flex-1 h-12 bg-accent hover:bg-teal-300 text-neutral-800 rounded-xl font-medium text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer">
+          <svg width="12" height="14" viewBox="0 0 18 20" fill="currentColor"><path d="M0 0v20l18-10z"/></svg>
+          Start
+        </button>
+        <button id="btn-pause"
+          class="flex-1 h-12 bg-neutral-200 hover:bg-neutral-300 text-neutral-800 rounded-xl font-medium text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer hidden">
+          <svg width="12" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <rect x="6" y="4" width="4" height="16" rx="1" />
+            <rect x="14" y="4" width="4" height="16" rx="1" />
+          </svg>
+          Pause
+        </button>
+        <button id="btn-resume"
+          class="flex-1 h-12 bg-neutral-200 hover:bg-neutral-300 text-neutral-800 rounded-xl font-medium text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer hidden">
+          <svg width="12" height="14" viewBox="0 0 18 20" fill="currentColor"><path d="M0 0v20l18-10z"/></svg>
+          Resume
+        </button>
+        <button id="btn-rest"
+          class="flex-1 h-12 bg-accent hover:bg-teal-300 text-neutral-800 rounded-xl font-medium text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer hidden">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          Rest
+        </button>
         <button id="btn-stop"
-          class="text-neutral-500 hover:text-neutral-700 text-sm underline underline-offset-4 transition-colors cursor-pointer hidden">End Session</button>
+          class="flex-1 h-12 bg-neutral-100 hover:bg-neutral-200 text-neutral-500 rounded-xl font-medium text-sm flex items-center justify-center gap-2 transition-colors cursor-pointer hidden">
+          <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor"><rect x="1" y="1" width="10" height="10" rx="1.5"/></svg>
+          <span id="btn-stop-label">End</span>
+        </button>
+      </div>
+
+      <!-- Ratio — a pre-start setting only, so it sits at the foot of the panel
+           and stays visually quieter than the readout and the play button. -->
+      <div class="w-full">
+        <div class="flex items-center justify-between mb-2">
+          <label for="ratio-slider" class="text-neutral-400 text-xs">
+            Rest ratio<span id="ratio-lock" class="text-neutral-300 text-[10px] ml-1.5 hidden">locked</span>
+          </label>
+          <span id="ratio-display" class="text-neutral-400 text-xs font-mono tabular-nums">20% (work 5:1)</span>
+        </div>
+
+        <div class="relative w-full">
+          <!-- Exact value while dragging. `left` is set by ui.ts so it tracks
+               the thumb; the 11px/22px numbers must match the thumb size in
+               style.css. -->
+          <div id="ratio-bubble"
+            class="pointer-events-none absolute -top-6 -translate-x-1/2 opacity-0 transition-opacity duration-150 bg-neutral-800 text-white text-[10px] font-mono tabular-nums rounded px-1.5 py-0.5"></div>
+
+          <input id="ratio-slider" type="range" min="5" max="100" value="20" step="1"
+            class="w-full block" />
+
+          <!-- Labelled ticks. The row is inset by half a thumb (11px) so these
+               percentages line up with the real values instead of a
+               justify-between placement, which puts labels at the 50% mark of a
+               5–100 range (actually 52.5%). -->
+          <div class="relative mt-1 h-3 mx-[11px]">
+            <span class="absolute top-0 -translate-x-1/2 text-[10px] text-neutral-300" style="left:0%">5%</span>
+            <span class="absolute top-0 -translate-x-1/2 text-[10px] text-neutral-300" style="left:21.05%">25%</span>
+            <span class="absolute top-0 -translate-x-1/2 text-[10px] text-neutral-300" style="left:47.37%">50%</span>
+            <span class="absolute top-0 -translate-x-1/2 text-[10px] text-neutral-300" style="left:73.68%">75%</span>
+            <span class="absolute top-0 -translate-x-1/2 text-[10px] text-neutral-300" style="left:100%">100%</span>
+          </div>
+        </div>
       </div>
 
       <!-- Time block timeline -->
-      <div id="timeline-section" class="w-full mt-6 hidden">
+      <div id="timeline-section" class="w-full mt-8 hidden">
         <div class="flex items-center justify-between mb-2">
           <div class="flex items-center gap-1.5">
             <p class="text-neutral-500 text-xs tracking-[0.2em] uppercase">Flow</p>
@@ -147,6 +199,8 @@
           <select id="qa-type" class="bg-neutral-100 border border-neutral-200 rounded-lg px-2 py-1.5 text-sm text-neutral-700 cursor-pointer">
             <option value="work">Focus</option>
             <option value="rest">Break</option>
+            <option value="earn" title="Bank unused-pool time from focus minutes (minutes × rest ratio). No time block is recorded.">Earn Rest</option>
+            <option value="pool" title="Adjust the unused pool directly — the only kind that accepts negative minutes.">Pool ±</option>
           </select>
           <input id="qa-duration" type="number" min="1" max="480" value="25" placeholder="min"
             class="bg-neutral-100 border border-neutral-200 rounded-lg px-2 py-1.5 text-sm text-neutral-700 w-14 font-mono tabular-nums" />
@@ -158,6 +212,7 @@
             </svg>
           </button>
         </div>
+        <p id="qa-hint" class="text-amber-500 text-xs mt-1.5 hidden"></p>
       </div>
 
     </div>
@@ -199,8 +254,9 @@
         </div>
       </div>
 
-      <!-- Bar chart -->
-      <div id="bar-chart" class="w-full flex items-end gap-1">
+      <!-- Bar chart. Columns are capped at a readable width and the group is
+           centred, so a single day of data stays a single bar. -->
+      <div id="bar-chart" class="w-full flex items-end justify-center gap-1">
         <!-- bars rendered by JS -->
       </div>
 
@@ -218,8 +274,22 @@
         <p class="text-neutral-800 text-sm font-medium mb-2">Default rest ratio</p>
         <div class="flex items-center gap-3">
           <input id="setting-ratio-slider" type="range" min="5" max="100" value="20" step="1"
-            class="flex-1 h-1.5 rounded-full cursor-pointer" />
+            class="flex-1" />
           <span id="setting-ratio-display" class="text-neutral-600 text-sm font-mono tabular-nums w-20 text-right">20% (work 5:1)</span>
+        </div>
+        <p id="setting-ratio-hint" class="text-neutral-400 text-xs mt-2 hidden">Only settable before a cycle starts.</p>
+      </div>
+
+      <div class="w-full bg-white rounded-xl px-4 py-3 mb-4">
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <p class="text-neutral-800 text-sm font-medium">Live rest share</p>
+            <p class="text-neutral-400 text-xs mt-1">4-decimal rest share, live while spending the unused pool</p>
+          </div>
+          <button id="setting-live-share" role="switch" aria-checked="false"
+            class="shrink-0 w-9 h-5 bg-neutral-200 rounded-full p-0.5 transition-colors cursor-pointer">
+            <span id="setting-live-share-knob" class="block w-4 h-4 bg-white rounded-full shadow-sm transition-transform"></span>
+          </button>
         </div>
       </div>
 

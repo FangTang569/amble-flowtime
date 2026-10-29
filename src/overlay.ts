@@ -5,6 +5,7 @@ interface OverlayUpdate {
   minutes: string;
   seconds: string;
   state: string;
+  restPhase?: "earned" | "unused";
 }
 
 const elMin = document.getElementById("mini-minutes")!;
@@ -24,26 +25,33 @@ function adjustWidth(minLen: number) {
 
 // Update time display
 listen<OverlayUpdate>("timer-update", (event) => {
-  const { minutes, seconds, state } = event.payload;
+  const { minutes, seconds, state, restPhase } = event.payload;
   elMin.textContent = minutes;
   elSec.textContent = seconds;
   elColon.classList.add("timer-colon");
   setTimeout(() => elColon.classList.remove("timer-colon"), 200);
 
   const resting = state === "resting";
-  const toggle = (el: HTMLElement, add: string, rem: string) => {
-    el.classList.add(add);
-    el.classList.remove(rem);
-  };
-  if (resting) {
-    toggle(elMin, "text-emerald-500", "text-neutral-800");
-    toggle(elSec, "text-emerald-500", "text-neutral-800");
-    toggle(elColon, "text-emerald-500", "text-neutral-400");
-  } else {
-    toggle(elMin, "text-neutral-800", "text-emerald-500");
-    toggle(elSec, "text-neutral-800", "text-emerald-500");
-    toggle(elColon, "text-neutral-400", "text-emerald-500");
+  // Amber mirrors the main window: it means the unused-rest pool is being spent.
+  const spendingPool = resting && restPhase === "unused";
+  const digitColor = spendingPool
+    ? "text-amber-500"
+    : resting
+      ? "text-emerald-500"
+      : "text-neutral-800";
+  const colonColor = spendingPool
+    ? "text-amber-500"
+    : resting
+      ? "text-emerald-500"
+      : "text-neutral-400";
+
+  const COLORS = ["text-neutral-800", "text-emerald-500", "text-amber-500"];
+  for (const el of [elMin, elSec]) {
+    el.classList.remove(...COLORS);
+    el.classList.add(digitColor);
   }
+  elColon.classList.remove(...COLORS, "text-neutral-400");
+  elColon.classList.add(colonColor);
 
   adjustWidth(minutes.length);
 });

@@ -8,32 +8,36 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Range input styling */
+/* Range input styling.
+ *
+ * The input itself is a 28px-tall hit area — a 6px input with the track painted
+ * on it means you have to hit a 6px strip to grab the handle. The visible track
+ * is drawn on the pseudo-element instead. Thumb width is 22px; index.html insets
+ * the tick labels by half of that, so if you change it here, change those two
+ * values too.
+ */
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
-  height: 6px;
-  background: #e5e7eb;
-  border-radius: 3px;
+  height: 28px;
+  background: transparent;
   cursor: pointer;
   outline: none;
+}
+
+input[type="range"]::-webkit-slider-runnable-track {
+  height: 8px;
+  background: #e5e7eb;
+  border-radius: 4px;
 }
 
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: #2dd4bf;
-  border: 2px solid #fff;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
-  cursor: pointer;
-}
-
-input[type="range"]::-moz-range-thumb {
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
+  /* centres a 22px thumb on an 8px track: (8 - 22) / 2 */
+  margin-top: -7px;
   border-radius: 50%;
   background: #2dd4bf;
   border: 2px solid #fff;
@@ -43,12 +47,41 @@ input[type="range"]::-moz-range-thumb {
 
 input[type="range"]::-moz-range-track {
   background: #e5e7eb;
-  height: 6px;
-  border-radius: 3px;
+  height: 8px;
+  border-radius: 4px;
 }
 
-/* Prevent text selection on timer */
-#timer-container {
+input[type="range"]::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #2dd4bf;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+}
+
+/* Arrow keys nudge by one step, so show where focus is. */
+input[type="range"]:focus-visible {
+  outline: 2px solid #5eead4;
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+input[type="range"]:disabled {
+  cursor: not-allowed;
+}
+
+input[type="range"]:disabled::-webkit-slider-thumb {
+  background: #d1d5db;
+}
+
+input[type="range"]:disabled::-moz-range-thumb {
+  background: #d1d5db;
+}
+
+/* Prevent text selection on the readout */
+#ledger {
   user-select: none;
   -webkit-user-select: none;
 }
@@ -66,11 +99,6 @@ input[type="range"]::-moz-range-track {
 
 .timer-running .timer-colon {
   animation: colon-pulse 2s ease-in-out infinite;
-}
-
-/* Rest preview fade in */
-#rest-preview {
-  opacity: 1;
 }
 
 /* iOS safe area (desktop browsers resolve env() to 0) */

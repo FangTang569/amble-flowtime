@@ -9,7 +9,8 @@ Rest is not the opposite of work — rest is part of work.
 
 This app focuses on the forward-counting (正计时) timer experience.
 Each pause automatically calculates expected rest time based on a user-set ratio
-and pre-fills the rest countdown.
+and pre-fills the rest countdown. Rest you end early is banked into an
+unused-rest pool, which is spent automatically once the earned rest runs out.
 
 ## Tech Stack
 
@@ -35,12 +36,15 @@ amble-flowtime/
 ├── postcss.config.js          # PostCSS with Tailwind + Autoprefixer
 ├── src/
 │   ├── main.ts                # Bootstrap: create timer, wire UI & storage
-│   ├── timer.ts               # FlowTimer class (state machine + timing)
+│   ├── timer.ts               # FlowTimer class (state machine + rest pool)
+│   ├── pool.ts                # Unused-rest pool (localStorage, resets daily)
 │   ├── ui.ts                  # DOM manipulation, render(), setupUI()
 │   ├── types.ts               # Shared TypeScript types
 │   ├── storage.ts             # SQLite session persistence
 │   ├── overlay.ts             # Mini overlay window script
 │   └── style.css              # Tailwind directives + custom CSS
+├── scripts/
+│   └── timer-selftest.ts      # Headless timer semantics test (npm run selftest)
 ├── src-tauri/
 │   ├── Cargo.toml             # tauri 2, serde, serde_json, tauri-plugin-sql
 │   ├── build.rs               # tauri-build
@@ -67,16 +71,19 @@ idle ──[start]──> running ──[pause]──> paused ──[startRest]�
 **States:**
 - **idle**: Timer reset, ready to start a new work session
 - **running**: Work timer counting up (forward-counting)
-- **paused**: Work timer stopped, rest time calculated and displayed
-- **resting**: Rest timer counting down from calculated rest time
+- **paused**: Work timer stopped, earned rest settled and displayed
+- **resting**: Rest counting down — first the earned rest, then the banked pool
 
 **Key behaviors:**
 - `start()`: Works from idle or paused state
-- `pause()`: Calculates `restTarget = workElapsed × ratio`, enters paused
+- `pause()`: Settles `restTarget = workElapsed × ratio`, enters paused
 - `resume()`: Continues work from paused (accumulated time preserved)
-- `startRest()`: Begins countdown from pre-calculated rest time
-- `stop()`: Full reset to idle, clears all accumulators
-- Auto-stop: When rest countdown reaches 0, automatically transitions to idle
+- `startRest()`: Snapshots the pool and begins countdown from earned rest
+- `stop()`: Settles the pool, emits `onSessionEnd`, resets to idle
+- Auto-stop: When earned rest **and** the snapshotted pool are used up
+- `setRatio()`: Rejected (returns false) unless idle — a cycle locks its ratio
+- Rest phase: `earned` while the cycle's own rest runs, `unused` once the
+  pool is being spent
 
 ## Architecture Decisions
 
@@ -97,7 +104,30 @@ Provides smooth second-boundary transitions without measurable CPU cost.
 - Stored as a decimal (0.05–1.0)
 - Default: 0.25 (work 4:1 = 25% rest)
 - Displayed as percentage + ratio string (e.g., "25% (work 4:1)")
-- Can be changed at any time; recalculates rest target if paused
+- Settable **only while idle** — `setRatio()` returns false once a cycle has
+  begun, and both ratio sliders render as locked
+
+### Unused-Rest Pool (未使用休息池)
+Ending a rest early banks the leftover earned rest into a pool
+(`src/pool.ts`, localStorage key `amble-unused-rest`). The next rest spends it
+automatically, but only after that cycle's own earned rest is exhausted — the
+pool balance is snapshotted at `startRest()` so a round can never run forever.
+The pool is a single-day allowance and resets at local midnight.
+
+### Readout: two-account ledger
+The hero display is a side-by-side ledger: **EARNED** (what the current cycle
+has bought) and **UNUSED** (the banked pool). The account in play is solid, the
+dormant one fades back; the pool flashes amber the moment a rest is banked.
+At idle the left column repurposes itself as **TODAY** — today's rest share
+(rest ÷ tracked time) instead of a dead 00:00.
+The **Live rest share** setting sharpens this to 4 decimals and keeps it on
+screen while the unused pool is being spent — toggled by clicking the left
+column (in the two share states) or the settings switch; the live figure
+quantizes the
+in-flight session with the same `secOf` rounding the database applies
+(`src/share.ts`), and the session-end handler stores the last displayed rest
+seconds, so the handover back to idle never jumps.
+The mini overlay mirrors `snapshot.displayMs` — the single most relevant number.
 
 ## Development Commands
 
@@ -110,6 +140,9 @@ npm run tauri dev
 
 # TypeScript type check
 npx tsc --noEmit
+
+# Headless timer semantics test (deterministic clock, no DOM/Tauri)
+npm run selftest
 
 # Build for production
 npm run tauri build
